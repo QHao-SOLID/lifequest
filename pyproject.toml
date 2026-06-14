@@ -1,0 +1,13 @@
+[project]
+name = "lifequest"
+version = "0.1.0"
+description = "LifeQuest — Living CV MMORPG"
+dependencies = [
+    "flask>=3.0.0",
+    "werkzeug>=3.0.0",
+    "pyyaml>=6.0",
+    "pypdf2>=3.0.0",
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+]
+requires-python = ">=3.10"

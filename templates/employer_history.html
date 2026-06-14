@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+  <h2 class="section-title">▸ SWIPE HISTORY</h2>
+  {% if swipes %}
+  <div class="section-card pixel-border">
+    <div class="entry-list">
+      {% for s in swipes %}
+      <div class="entry-card pixel-border">
+        <div class="entry-header">
+          <span class="entry-title">
+            {% if s.avatar and s.avatar.startswith('custom:') %}
+              <img src="{{ url_for('candidate.serve_avatar', filename=s.avatar.replace('custom:', '')) }}" 
+                   style="width: 28px; height: 28px; border-radius: 8px; object-fit: cover; display: inline-block; vertical-align: middle; margin-right: 8px;">
+            {% else %}
+              <span style="font-size: 24px; display: inline-block; vertical-align: middle; margin-right: 8px;">{{ s.avatar or '🧑' }}</span>
+            {% endif %}
+            {{ s.username }}
+          </span>
+          <span class="entry-badge" style="background: {% if s.action == 'accepted' %}var(--success-bg){% else %}var(--danger-bg){% endif %}; color: {% if s.action == 'accepted' %}var(--success){% else %}var(--danger){% endif %};">
+            {{ s.action | upper }}
+          </span>
+        </div>
+        <div class="entry-duration">{{ s.title or '' }}</div>
+        <div class="entry-tags">{% set sk = s.skills | from_json if s.skills else [] %}{% for skill in sk[:6] %}<span class="mini-tag">{{ skill }}</span>{% endfor %}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+          <span style="font-size: 11px; color: var(--text-muted);">Swiped: {{ s.created_at[:10] if s.created_at else 'Unknown date' }}</span>
+          <form method="POST" action="{{ url_for('employer.history_revert', swipe_id=s.swipe_id) }}" onsubmit="return confirm('Revert this swipe? Candidate will reappear in your deck.')">
+            <button type="submit" class="pixel-btn btn-small btn-ghost" style="font-size: 11px;">↻ Revert</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="section-card pixel-border">
+    <p class="empty-state">No swipe history yet. Start swiping on candidates from your dashboard!</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CareerOS — {{ title if title else 'Your Career Intelligence Platform' }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-brand">
+    <img src="{{ url_for('static', filename='CareerOS_logo.png') }}" alt="CareerOS" style="height:80px;">
+  </div>
+  <div class="nav-links">
+    {% if session.user_id %}
+      {% if session.get('role') == 'employer' %}
+        <a href="{{ url_for('employer.dashboard') }}">Home</a>
+        <a href="{{ url_for('employer.matches') }}">Matches</a>
+        <a href="{{ url_for('employer.history') }}">History</a>
+        <a href="{{ url_for('auth.logout') }}">Logout</a>
+        <a href="{{ url_for('employer.profile') }}" class="nav-user">Profile</a>
+      {% elif session.get('role') == 'University' %}
+        <a href="{{ url_for('university.dashboard') }}" class="nav-user">Dashboard</a>
+        <a href="{{ url_for('university.profile') }}">Profile</a>
+        <a href="{{ url_for('auth.logout') }}">Logout</a>
+      {% else %}
+        <a href="{{ url_for('candidate.dashboard') }}">Home</a>
+        <a href="{{ url_for('candidate.friends_page') }}">Network</a>
+        <a href="{{ url_for('candidate.jobs_browse') }}">Jobs{% if unread_notifications %} <span class="nav-notif">{{ unread_notifications }}</span>{% endif %}</a>
+        <a href="{{ url_for('auth.logout') }}">Logout</a>
+        <a href="{{ url_for('candidate.profile', username=session.username) }}" class="nav-user">Profile</a>
+      {% endif %}
+    {% else %}
+      <a href="{{ url_for('auth.login') }}">Login</a>
+      <a href="{{ url_for('auth.signup') }}">Sign Up</a>
+    {% endif %}
+  </div>
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+  {% endfor %}
+{% endwith %}
+
+<main>
+{% block content %}{% endblock %}
+</main>
+<script>
+(function() {
+  const currentPath = window.location.pathname;
+  const navLinks = document.querySelectorAll('.nav-links a');
+  
+  navLinks.forEach(function(link) {
+    const href = link.getAttribute('href');
+    if (!href || href === '#') return;
+    
+    // Remove any existing active class
+    link.classList.remove('nav-active');
+    
+    // Exact match for homepage
+    if (href === '/' && currentPath === '/') {
+      link.classList.add('nav-active');
+    }
+    // For other pages - exact match only, no partial matching
+    else if (href !== '/' && currentPath === href) {
+      link.classList.add('nav-active');
+    }
+    // For routes with trailing slash
+    else if (href !== '/' && currentPath === href + '/') {
+      link.classList.add('nav-active');
+    }
+  });
+})();
+</script>
+</body>
+</html>
+
+
+

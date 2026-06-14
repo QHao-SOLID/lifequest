@@ -1,0 +1,647 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+
+  <!-- Main Profile Block with Slanted Card -->
+  <div class="profile-main-block">
+    
+    <!-- Left side: Avatar + Info -->
+    <div class="profile-left">
+      <div class="profile-avatar">
+        {% if p_avatar.startswith('custom:') %}
+        <img src="/uploads/avatars/{{ p_avatar.replace('custom:', '') }}" alt="avatar" class="avatar-custom">
+        {% else %}
+        <div class="avatar-emoji">{{ p_avatar }}</div>
+        {% endif %}
+      </div>
+
+      <div class="profile-info">
+        <h2 class="profile-name">{{ p_username }}</h2>
+        <p class="profile-title">{{ profile.title or 'Career Profile' }}</p>
+
+        <div class="profile-stats">
+          <div class="stat-item">
+            {% set skills_list = profile.skills | from_json if profile.skills else [] %}
+            <span class="stat-number">{{ skills_list | length }}</span>
+            <span class="stat-label">SKILLS</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-number">{{ p_friend_count }}</span>
+            <span class="stat-label">CONNECTIONS</span>
+          </div>
+          {% if completeness.score > 0 %}
+          <div class="stat-item">
+            <span class="stat-number" style="{% if completeness.score >= 75 %}color: #155724;{% elif completeness.score >= 40 %}color: #856404;{% else %}color: #721c24;{% endif %}">{{ completeness.score }}%</span>
+            <span class="stat-label">COMPLETE</span>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if session.user_id != p_user_id and not is_employer_view %}
+        <div class="friend-action">
+          {% if is_friend %}
+          <form method="POST" action="{{ url_for('candidate.friend_remove', friend_id=p_user_id) }}">
+            <button class="pixel-btn btn-small btn-danger">Remove Connection</button>
+          </form>
+          {% else %}
+          <button class="pixel-btn btn-small" onclick="sendFriend({{ p_user_id }})">+ Connect</button>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if is_own and not is_employer_view %}
+        <div class="avatar-controls">
+          <button class="pixel-btn btn-small btn-ghost" onclick="showAvatarPicker()">Change Icon</button>
+          <div id="avatar-picker" style="display:none;margin-top:12px">
+            <form method="POST" action="{{ url_for('candidate.update_avatar') }}" enctype="multipart/form-data" style="margin-bottom:10px">
+              <input type="file" name="avatar_file" accept="image/*" class="pixel-input">
+              <button type="submit" class="pixel-btn btn-small" style="margin-top:8px">Upload Photo</button>
+            </form>
+            <form method="POST" action="{{ url_for('candidate.update_avatar') }}">
+              <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Pick an emoji</p>
+              <div class="emoji-grid">
+                <input type="hidden" name="avatar" id="prof-avatar-val" value="{{ p_avatar if not p_avatar.startswith('custom:') else '🧑' }}">
+                {% for e in ['🧑','👩','🧔','🧙','🧝','🦸','👨‍💻','👩‍🎓','👩‍🔬','🧑‍🎨','🧑‍🔧','👨‍🚀'] %}
+                <span class="emoji-opt {% if e == p_avatar %}selected{% endif %}" data-emoji="{{ e }}" onclick="selectEmoji(this)">{{ e }}</span>
+                {% endfor %}
+              </div>
+              <button type="submit" class="pixel-btn btn-small" style="margin-top:10px">Set Emoji</button>
+            </form>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Right side: Slanted Talent Card (bigger) -->
+    {% set cv = profile.cv_data | from_json if profile.cv_data else {} %}
+    {% set meta = cv.get('meta', {}) %}
+    
+    <!-- Collect top achievements from various sources (FIXED - handles None values) -->
+    {% set top_achievements = [] %}
+    
+    {# Get projects #}
+    {% set projects = cv.get('projects', []) %}
+    {% for p in projects %}
+      {% if top_achievements|length < 2 %}
+        {% set project_name = p.get('project_name') or '' %}
+        {% set notes = p.get('notes') or '' %}
+        {% set achievement = project_name %}
+        {% if notes %}
+          {% set achievement = project_name + ' - ' + notes[:50] %}
+        {% endif %}
+        {% if achievement and achievement|trim %}
+          {% set _ = top_achievements.append(achievement) %}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+    
+    {# Get work experience if needed #}
+    {% set work = cv.get('work_experience', []) %}
+    {% for w in work %}
+      {% if top_achievements|length < 3 %}
+        {% set role = w.get('role') or '' %}
+        {% set org = w.get('organisation') or '' %}
+        {% set achievements_text = w.get('achievements') or '' %}
+        {% set achievement = role + ' at ' + org %}
+        {% if achievements_text %}
+          {% set achievement = achievement + ' - ' + achievements_text[:50] %}
+        {% endif %}
+        {% if achievement and achievement|trim and achievement != ' at ' %}
+          {% set _ = top_achievements.append(achievement) %}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+    
+    {# Get certifications if needed #}
+    {% set certs = cv.get('certifications', []) %}
+    {% for c in certs %}
+      {% if top_achievements|length < 3 %}
+        {% set cert = c or '' %}
+        {% if cert and cert|trim %}
+          {% set _ = top_achievements.append('Certification: ' + cert) %}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+    
+    {# Fallback achievements #}
+    {% if not top_achievements %}
+      {% set top_achievements = ['Upload CV to showcase achievements', 'Add projects to your portfolio', 'Build your professional network'] %}
+    {% endif %}
+    
+    <div class="slanted-card-wrapper">
+      <div class="slanted-card" id="slanted-card" onclick="expandSlantedCard()">
+        <div class="slanted-card-inner">
+          <div class="slanted-card-name">{{ meta.get('name') or p_username }}</div>
+          <ul class="slanted-card-bullets">
+            {% for achievement in top_achievements[:3] %}
+            <li>{{ achievement }}</li>
+            {% endfor %}
+          </ul>
+          <div class="slanted-card-hint">Click to Expand →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expanded Slanted Card Modal -->
+  <div class="card-modal-overlay" id="slanted-overlay" onclick="collapseSlantedCard()">
+    <div class="card-modal" id="slanted-modal" onclick="event.stopPropagation()">
+      <div class="card-modal-name">{{ meta.get('name') or p_username }}</div>
+      <div class="card-modal-role">{{ profile.title or 'Candidate' }}</div>
+      <ul class="card-modal-bullets">
+        {% set all_skills = cv.get('skills', []) %}
+        {% if all_skills %}
+          {% for skill in all_skills[:8] %}
+          <li>{{ skill }}</li>
+          {% endfor %}
+        {% else %}
+          <li>Upload CV to populate your talent card</li>
+        {% endif %}
+      </ul>
+      <button class="pixel-btn btn-small btn-ghost" onclick="collapseSlantedCard()" style="margin-top:20px;width:100%">Close</button>
+    </div>
+  </div>
+
+  <!-- Contact Section with Edit -->
+  <div class="section-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 class="section-title" style="margin-bottom: 0;">CONTACT</h3>
+      {% if is_own and not is_employer_view %}
+      <button class="pixel-btn btn-small btn-ghost" onclick="toggleContactEdit()" id="edit-contact-btn">✏️ Edit</button>
+      {% endif %}
+    </div>
+    
+    <!-- VIEW MODE -->
+    <div id="contact-view">
+      <div class="meta-grid">
+        {% if meta.get('name') %}<div class="meta-item"><span class="meta-label">NAME</span><span class="meta-value">{{ meta.name }}</span></div>{% endif %}
+        {% if meta.get('email') %}<div class="meta-item"><span class="meta-label">EMAIL</span><span class="meta-value">{{ meta.email }}</span></div>{% endif %}
+        {% if meta.get('phone') %}<div class="meta-item"><span class="meta-label">PHONE</span><span class="meta-value">{{ meta.phone }}</span></div>{% endif %}
+        {% if meta.get('location') %}<div class="meta-item"><span class="meta-label">LOCATION</span><span class="meta-value">{{ meta.location }}</span></div>{% endif %}
+        {% if meta.get('social_media') and meta.social_media|length %}
+        <div class="meta-item">
+          <span class="meta-label">SOCIAL</span>
+          <span class="meta-value">
+            {% for s in meta.social_media %}
+              {{ s }}{% if not loop.last %}<br>{% endif %}
+            {% endfor %}
+          </span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- EDIT MODE (hidden by default) -->
+    <div id="contact-edit" style="display: none;">
+      <form id="contact-form" method="POST" action="{{ url_for('candidate.update_contact') }}">
+        <div class="field">
+          <label>NAME</label>
+          <input type="text" name="name" class="pixel-input" value="{{ meta.get('name', '') }}">
+        </div>
+        <div class="field">
+          <label>EMAIL</label>
+          <input type="email" name="email" class="pixel-input" value="{{ meta.get('email', '') }}">
+        </div>
+        <div class="field">
+          <label>PHONE</label>
+          <input type="text" name="phone" class="pixel-input" value="{{ meta.get('phone', '') }}">
+        </div>
+        <div class="field">
+          <label>LOCATION</label>
+          <input type="text" name="location" class="pixel-input" value="{{ meta.get('location', '') }}">
+        </div>
+        <div class="field">
+          <label>SOCIAL MEDIA <span style="font-size: 10px; color: var(--text-muted);">(one per line)</span></label>
+          <textarea name="social_media" class="pixel-textarea" rows="3">{% if meta.get('social_media') %}{{ meta.get('social_media') | join('\n') }}{% endif %}</textarea>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px;">
+          <button type="button" class="pixel-btn btn-small btn-ghost" onclick="toggleContactEdit()">Cancel</button>
+          <button type="submit" class="pixel-btn btn-small">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Skills -->
+  <div class="section-card">
+    <h3 class="section-title">SKILLS</h3>
+    {% set skills_list = profile.skills | from_json if profile.skills else [] %}
+    {% if skills_list %}
+    <div class="skill-tags">
+      {% for s in skills_list %}
+      <span class="skill-tag">{{ s }}</span>
+      {% endfor %}
+    </div>
+    {% elif cv.get('skills') %}
+    <div class="skill-tags">
+      {% for s in cv.skills %}
+      <span class="skill-tag">{{ s }}</span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No skills extracted yet. Upload a CV to get started.</p>
+    {% endif %}
+  </div>
+
+  <!-- Work Experience -->
+  {% set work = cv.get('work_experience', []) %}
+  {% if work %}
+  <div class="section-card">
+    <h3 class="section-title">WORK EXPERIENCE</h3>
+    <div class="entry-list">
+      {% for w in work %}
+      <div class="entry-card">
+        <div class="entry-header">
+          <span class="entry-title">{{ w.get('role') or 'Role' }}</span>
+          {% if w.get('organisation') %}<span class="entry-sub">@ {{ w.organisation }}</span>{% endif %}
+        </div>
+        {% if w.get('duration') %}<div class="entry-duration">{{ w.duration }}</div>{% endif %}
+        {% if w.get('location') %}<div class="entry-location">📍 {{ w.location }}</div>{% endif %}
+        {% if w.get('achievements') %}<p class="entry-desc">{{ w.achievements }}</p>{% endif %}
+        {% if w.get('skills_obtained') and w.skills_obtained|length %}
+        <div class="entry-tags">
+          {% for s in w.skills_obtained %}<span class="mini-tag">{{ s }}</span>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Education -->
+  {% set edu = cv.get('education', []) %}
+  {% if edu %}
+  <div class="section-card">
+    <h3 class="section-title">EDUCATION</h3>
+    <div class="entry-list">
+      {% for e in edu %}
+      <div class="entry-card">
+        <div class="entry-header">
+          <span class="entry-title">{{ e.get('institution') or 'Institution' }}</span>
+          {% if e.get('course') %}<span class="entry-sub">{{ e.course }}</span>{% endif %}
+        </div>
+        {% if e.get('duration') %}<div class="entry-duration">{{ e.duration }}</div>{% endif %}
+        {% if e.get('location') %}<div class="entry-location">📍 {{ e.location }}</div>{% endif %}
+        {% if e.get('results') %}<div class="entry-results">🎓 {{ e.results }}</div>{% endif %}
+        {% if e.get('subjects') and e.subjects|length %}
+        <div class="entry-tags">
+          {% for sub in e.subjects %}<span class="mini-tag">{{ sub }}</span>{% endfor %}
+        </div>
+        {% endif %}
+        {% if e.get('activities') and e.activities|length %}
+        <div class="entry-activities">
+          <span class="act-label">Activities: </span>
+          {% for a in e.activities %}<span class="act-item">{{ a }}</span>{% if not loop.last %} · {% endif %}{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Leadership -->
+  {% set leadership = cv.get('leadership', []) %}
+  {% if leadership %}
+  <div class="section-card">
+    <h3 class="section-title">LEADERSHIP & EXTRACURRICULAR</h3>
+    <div class="entry-list">
+      {% for l in leadership %}
+      <div class="entry-card">
+        <div class="entry-header">
+          {% if l.get('role') %}<span class="entry-title">{{ l.role }}</span>{% endif %}
+          {% if l.get('place') %}<span class="entry-sub">@ {{ l.place }}</span>{% endif %}
+        </div>
+        {% if l.get('duration') %}<div class="entry-duration">{{ l.duration }}</div>{% endif %}
+        {% if l.get('notes') %}<p class="entry-desc">{{ l.notes }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Projects & Certifications -->
+  {% set projects = cv.get('projects', []) %}
+  {% if projects %}
+  <div class="section-card">
+    <h3 class="section-title">PROJECTS & CERTIFICATIONS</h3>
+    <div class="entry-list">
+      {% for p in projects %}
+      <div class="entry-card">
+        <div class="entry-header">
+          {% if p.get('project_name') %}<span class="entry-title">{{ p.project_name }}</span>{% endif %}
+          {% if p.get('project_type') %}<span class="entry-badge">{{ p.project_type | upper }}</span>{% endif %}
+        </div>
+        {% if p.get('duration') %}<div class="entry-duration">{{ p.duration }}</div>{% endif %}
+        {% if p.get('notes') %}<p class="entry-desc">{{ p.notes }}</p>{% endif %}
+        {% if p.get('proof_link') %}<div class="entry-link">🔗 {{ p.proof_link }}</div>{% endif %}
+        {% if p.get('certifications') and p.certifications|length %}
+        <div class="entry-tags">
+          {% for c in p.certifications %}<span class="mini-tag cert">{{ c }}</span>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<style>
+/* Profile Main Block Layout */
+.profile-main-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  margin-bottom: 24px;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+  box-shadow: var(--shadow-card);
+}
+
+.profile-left {
+  display: flex;
+  gap: 28px;
+  flex: 1;
+}
+
+.profile-avatar {
+  flex-shrink: 0;
+}
+
+.profile-avatar .avatar-emoji {
+  width: 100px;
+  height: 100px;
+  font-size: 56px;
+  background: var(--blue-light);
+  border: 2px solid var(--blue-mid);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-avatar .avatar-custom {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border: 2px solid var(--blue-mid);
+  border-radius: var(--radius-lg);
+}
+
+.profile-info {
+  flex: 1;
+}
+
+.profile-name {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+  letter-spacing: -0.3px;
+}
+
+.profile-title {
+  font-size: 15px;
+  color: var(--blue-royal);
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.profile-stats {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 20px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-number {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--blue-royal);
+}
+
+.stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.friend-action {
+  margin-bottom: 16px;
+}
+
+.avatar-controls {
+  margin-top: 8px;
+}
+
+/* Slanted Card - Bigger, overlapping right side */
+.slanted-card-wrapper {
+  position: relative;
+  width: 320px;
+  flex-shrink: 0;
+  margin-top: -20px;
+  margin-right: -20px;
+}
+
+.slanted-card {
+  background: var(--surface);
+  border: 2.5px solid var(--blue-royal);
+  border-radius: var(--radius-xl);
+  padding: 24px 20px;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  transition: all 0.3s var(--ease);
+  transform: rotate(2deg);
+}
+
+.slanted-card:hover {
+  transform: rotate(0deg) translateY(-4px);
+  box-shadow: var(--shadow-blue);
+}
+
+.slanted-card-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--blue-mid);
+}
+
+.slanted-card-bullets {
+  list-style: disc;
+  padding-left: 20px;
+  margin-bottom: 16px;
+}
+
+.slanted-card-bullets li {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.slanted-card-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--blue-royal);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Card Modal */
+.card-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s var(--ease);
+}
+
+.card-modal-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.card-modal {
+  background: var(--surface);
+  border: 2.5px solid var(--blue-royal);
+  border-radius: var(--radius-xl);
+  padding: 36px 32px;
+  width: 380px;
+  max-width: 90vw;
+  box-shadow: var(--shadow-lg);
+  transform: scale(0.9) translateY(20px);
+  transition: transform 0.25s var(--ease);
+}
+
+.card-modal.active {
+  transform: scale(1) translateY(0);
+}
+
+.card-modal-name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.card-modal-role {
+  font-size: 14px;
+  color: var(--blue-royal);
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.card-modal-bullets {
+  list-style: disc;
+  padding-left: 20px;
+  margin-bottom: 0;
+}
+
+.card-modal-bullets li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .profile-main-block {
+    flex-direction: column;
+  }
+  .slanted-card-wrapper {
+    width: 100%;
+    margin-top: 0;
+    margin-right: 0;
+  }
+  .slanted-card {
+    transform: rotate(0deg);
+  }
+  .profile-left {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .profile-stats {
+    justify-content: center;
+  }
+}
+</style>
+
+<script>
+function selectEmoji(element) {
+  document.getElementById('prof-avatar-val').value = element.dataset.emoji;
+  var opts = document.querySelectorAll('.emoji-opt');
+  for (var i = 0; i < opts.length; i++) {
+    opts[i].classList.remove('selected');
+  }
+  element.classList.add('selected');
+}
+
+async function sendFriend(userId) {
+  const resp = await fetch('/friend/send/' + userId, { method: 'POST' });
+  const data = await resp.json();
+  if (data.success) { location.reload(); }
+  else { alert(data.message); }
+}
+
+function showAvatarPicker() {
+  const p = document.getElementById('avatar-picker');
+  if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function expandSlantedCard() {
+  document.getElementById('slanted-overlay').classList.add('active');
+  document.getElementById('slanted-modal').classList.add('active');
+}
+
+function collapseSlantedCard() {
+  document.getElementById('slanted-overlay').classList.remove('active');
+  document.getElementById('slanted-modal').classList.remove('active');
+}
+
+function toggleContactEdit() {
+  var viewDiv = document.getElementById('contact-view');
+  var editDiv = document.getElementById('contact-edit');
+  var editBtn = document.getElementById('edit-contact-btn');
+  
+  if (viewDiv.style.display === 'none') {
+    viewDiv.style.display = 'block';
+    editDiv.style.display = 'none';
+    editBtn.textContent = '✏️ Edit';
+  } else {
+    viewDiv.style.display = 'none';
+    editDiv.style.display = 'block';
+    editBtn.textContent = 'Cancel';
+  }
+}
+</script>
+{% endblock %}

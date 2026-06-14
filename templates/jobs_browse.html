@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+  <h2 class="section-title">▸ OPEN JOBS</h2>
+
+  {% if hires %}
+  <div class="section-card pixel-border" style="border-color:var(--gold);box-shadow:0 0 8px var(--gold)">
+    <h3 class="section-title">🏆 YOUR HIRES ({{ hires|length }})</h3>
+    {% for h in hires %}
+    <div class="entry-card pixel-border">
+      <div class="entry-header">
+        <span class="entry-title">🏢 {{ h.company_name }}</span>
+        <span class="entry-badge" style="color:var(--gold);border-color:var(--gold)">{{ h.title }}</span>
+      </div>
+      <div class="entry-duration">Hired {{ h.created_at[:10] }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if notifications %}
+  <div class="section-card pixel-border" style="border-color:var(--gold);box-shadow:0 0 8px var(--gold)">
+    <h3 class="section-title">🔔 NOTIFICATIONS ({{ notifications|length }})</h3>
+    {% for n in notifications %}
+    <div class="notif-card pixel-border">
+      <p style="font-size:8px;color:var(--text);line-height:1.5">{{ n.message }}</p>
+      <div style="font-size:7px;color:var(--dim);margin-top:4px">{{ n.created_at[:10] }}</div>
+    </div>
+    {% endfor %}
+    <button class="pixel-btn pixel-border btn-small" onclick="dismissNotifs()" style="margin-top:8px">✓ Mark all read</button>
+  </div>
+  {% endif %}
+
+  {% if jobs %}
+  <div class="entry-list">
+    {% for j in jobs %}
+    <a href="{{ url_for('candidate.job_detail', job_id=j.id) }}" style="text-decoration:none">
+    <div class="entry-card pixel-border" style="cursor:pointer">
+      <div class="entry-header">
+        <span class="entry-title">{{ j.title }}</span>
+        <span class="entry-sub">@ {{ j.company_name }}</span>
+      </div>
+      <div class="entry-duration">🏢 {{ j.industry }}</div>
+      <div class="entry-tags">{% set sk = j.skills_required | from_json if j.skills_required else [] %}{% for s in sk[:6] %}<span class="mini-tag">{{ s }}</span>{% endfor %}</div>
+      <div class="entry-link" style="margin-top:6px">
+        {% if j.location %}📍 {{ j.location }}{% endif %}
+        {% if j.salary_range %} · 💰 {{ j.salary_range }}{% endif %}
+        · <span class="match-pct">Match: {{ j.match_pct }}%</span>
+      </div>
+    </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="section-card pixel-border">
+    <p class="empty-state">No open jobs right now. Check back later!</p>
+  </div>
+  {% endif %}
+</div>
+<script>
+async function dismissNotifs() {
+  await fetch('/jobs/notifications/read', { method: 'POST' });
+  location.reload();
+}
+</script>
+{% endblock %}

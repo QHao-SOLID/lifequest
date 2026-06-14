@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-container">
+  <div class="pixel-card">
+    <h1 class="pixel-title">Company Profile</h1>
+    <p class="auth-subtitle">Update your company information visible to candidates.</p>
+    <form method="POST">
+      <div class="field">
+        <label>Company Name</label>
+        <input type="text" name="company_name" class="pixel-input" value="{{ employer.company_name }}" required>
+      </div>
+      <div class="field">
+        <label>Industry</label>
+        <select name="industry" class="pixel-input">
+          <option value="">Select industry...</option>
+          {% for opt in ['Technology','Finance','Healthcare','Education','E-commerce','Consulting','Other'] %}
+          <option {% if employer.industry == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Website</label>
+        <input type="url" name="website" class="pixel-input" value="{{ employer.website or '' }}">
+      </div>
+      <div class="field">
+        <label>Company Description</label>
+        <textarea name="description" class="pixel-textarea" rows="4">{{ employer.description or '' }}</textarea>
+      </div>
+      <div class="field">
+        <label>Contact Email</label>
+        <input type="email" name="contact_email" class="pixel-input" value="{{ employer.contact_email or '' }}">
+      </div>
+      <button type="submit" class="pixel-btn" style="width:100%">Save Profile</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

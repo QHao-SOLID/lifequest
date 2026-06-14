@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+
+  <!-- Profile Card -->
+  <div class="player-card pixel-border">
+    <div class="avatar-pixel">
+      <div class="avatar-emoji">🎓</div>
+    </div>
+    <div class="player-info">
+      <h2 class="player-name">{{ university.university_name or username }}</h2>
+      <p class="player-title">{{ university.university_type or 'University' }} · Profile Settings</p>
+    </div>
+  </div>
+
+  <!-- Profile Form -->
+  <div class="section-card pixel-border">
+    <h3 class="section-title">🎓 University Profile</h3>
+    <p class="cv-hint">Update your university information visible to candidates and employers.</p>
+
+    <form method="POST" action="{{ url_for('university.profile') }}">
+
+      <div class="field" style="margin-bottom: 18px;">
+        <label class="profile-label">UNIVERSITY NAME</label>
+        <input
+          type="text"
+          name="university_name"
+          class="pixel-input pixel-border"
+          value="{{ university.university_name or '' }}"
+          placeholder="e.g. Universiti Teknologi Malaysia"
+          style="width:100%;"
+        >
+      </div>
+
+      <div class="field" style="margin-bottom: 18px;">
+        <label class="profile-label">UNIVERSITY TYPE</label>
+        <select name="university_type" class="pixel-input pixel-border" style="width:100%;">
+          <option value="">Select type...</option>
+          {% for t in ['Public University', 'Private University', 'University College', 'Polytechnic', 'Community College', 'Other'] %}
+          <option value="{{ t }}" {% if university.university_type == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field" style="margin-bottom: 18px;">
+        <label class="profile-label">UNIVERSITY WEBSITE</label>
+        <input
+          type="url"
+          name="university_website"
+          class="pixel-input pixel-border"
+          value="{{ university.university_website or '' }}"
+          placeholder="https://www.utm.my"
+          style="width:100%;"
+        >
+      </div>
+
+      <div class="field" style="margin-bottom: 18px;">
+        <label class="profile-label">CONTACT EMAIL (PUBLIC)</label>
+        <input
+          type="email"
+          name="university_email"
+          class="pixel-input pixel-border"
+          value="{{ university.university_email or '' }}"
+          placeholder="careers@utm.my"
+          style="width:100%;"
+        >
+      </div>
+
+      <button type="submit" class="pixel-btn" style="width:100%;margin-top:8px;">
+        💾 Save Changes
+      </button>
+
+    </form>
+  </div>
+
+  <!-- Account Info (read-only) -->
+  <div class="section-card pixel-border">
+    <h3 class="section-title">🔐 Account Information</h3>
+    <p class="cv-hint">These details are set at registration and cannot be changed here.</p>
+
+    <div class="quick-stats pixel-border" style="grid-template-columns: repeat(2, 1fr);">
+      <div class="stat-box">
+        <span class="stat-icon">👤</span>
+        <span class="stat-num" style="font-size:13px;">{{ username }}</span>
+        <span class="stat-desc">Username</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-icon">🎓</span>
+        <span class="stat-num" style="font-size:13px;">University</span>
+        <span class="stat-desc">Account Type</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.profile-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted, #8888bb);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  font-family: monospace;
+}
+</style>
+{% endblock %}

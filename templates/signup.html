@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-container">
+  <div class="pixel-card pixel-border">
+    <h1 class="pixel-title">▸ SIGN UP</h1>
+    <form method="POST">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" name="username" class="pixel-input pixel-border" required>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" name="email" class="pixel-input pixel-border" required>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" name="password" class="pixel-input pixel-border" required>
+      </div>
+      <div class="field">
+        <label>I am a...</label>
+        <div class="role-group">
+          <label class="role-opt"><input type="radio" name="role" value="candidate" checked onchange="toggleRole()"> 🧑
+            Candidate</label>
+          <label class="role-opt"><input type="radio" name="role" value="employer" onchange="toggleRole()"> 🏢
+            Employer</label>
+          <label class="role-opt"><input type="radio" name="role" value="University" onchange="toggleRole()"> 🎓
+            University</label>
+        </div>
+      </div>
+
+      <!-- CANDIDATE FIELDS -->
+      <div id="candidate-fields">
+        <div class="field">
+          <label>Choose your avatar</label>
+          <div class="emoji-picker">
+            <input type="hidden" name="avatar" id="avatar-val" value="🧑">
+            <div class="emoji-grid">
+              {% for e in ['🧑','👩','🧔','🧙','🧝','🦸','👨‍💻','👩‍🎓','👩‍🔬','🧑‍🎨','🧑‍🔧','👨‍🚀'] %}
+              <span class="emoji-opt {% if e == '🧑' %}selected{% endif %}" data-emoji="{{ e }}"
+                onclick="selectEmoji(this)">{{ e }}</span>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EMPLOYER FIELDS -->
+      <div id="employer-fields" style="display:none">
+        <div class="field">
+          <label>Company Name</label>
+          <input type="text" name="company_name" class="pixel-input pixel-border">
+        </div>
+        <div class="field">
+          <label>Industry</label>
+          <select name="industry" class="pixel-input pixel-border">
+            <option value="">Select...</option>
+            <option>Technology</option>
+            <option>Finance</option>
+            <option>Healthcare</option>
+            <option>Education</option>
+            <option>E-commerce</option>
+            <option>Consulting</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Website</label>
+          <input type="url" name="website" class="pixel-input pixel-border" placeholder="https://">
+        </div>
+        <div class="field">
+          <label>Contact Email (public)</label>
+          <input type="email" name="contact_email" class="pixel-input pixel-border">
+        </div>
+      </div>
+
+      <!-- UNIVERSITY FIELDS -->
+      <div id="university-fields" style="display:none">
+        <div class="field">
+          <label>University Name</label>
+          <input type="text" name="university_name" class="pixel-input pixel-border"
+            placeholder="e.g. Universiti Malaya">
+        </div>
+        <div class="field">
+          <label>University Type</label>
+          <select name="university_type" class="pixel-input pixel-border">
+            <option value="">Select...</option>
+            <option>Public University</option>
+            <option>Private University</option>
+            <option>University College</option>
+            <option>Polytechnic</option>
+            <option>Community College</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>University Website</label>
+          <input type="url" name="university_website" class="pixel-input pixel-border" placeholder="https://">
+        </div>
+        <div class="field">
+          <label>University Email (public)</label>
+          <input type="email" name="university_email" class="pixel-input pixel-border"
+            placeholder="e.g. careers@university.edu.my">
+        </div>
+      </div>
+
+      <button type="submit" class="pixel-btn pixel-border">▶ CREATE</button>
+    </form>
+    <p class="auth-link">Already registered? <a href="{{ url_for('auth.login') }}">Login</a></p>
+  </div>
+</div>
+<script>
+  function selectEmoji(el) {
+    document.querySelectorAll('.emoji-opt').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('avatar-val').value = el.dataset.emoji;
+  }
+  function toggleRole() {
+    const role = document.querySelector('[name=role]:checked').value;
+    document.getElementById('candidate-fields').style.display = role === 'candidate' ? 'block' : 'none';
+    document.getElementById('employer-fields').style.display = role === 'employer' ? 'block' : 'none';
+    document.getElementById('university-fields').style.display = role === 'University' ? 'block' : 'none';
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+
+  <!-- Profile Card -->
+  <div class="player-card pixel-border">
+    <div class="avatar-pixel">
+      {% if avatar.startswith('custom:') %}
+      <img src="/uploads/avatars/{{ avatar.replace('custom:', '') }}" alt="avatar" class="avatar-custom">
+      {% else %}
+      <div class="avatar-emoji">{{ avatar }}</div>
+      {% endif %}
+    </div>
+    <div class="player-info">
+      <h2 class="player-name">
+        {{ username }}
+        {% if completeness.score >= 75 %}
+        <span class="completeness-badge high">{{ completeness.score }}%</span>
+        {% elif completeness.score >= 40 %}
+        <span class="completeness-badge mid">{{ completeness.score }}%</span>
+        {% else %}
+        <span class="completeness-badge low">{{ completeness.score }}%</span>
+        {% endif %}
+      </h2>
+      <p class="player-title">{{ profile.title or 'Career Profile' }}</p>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="quick-stats pixel-border">
+    <div class="stat-box">
+      <span class="stat-icon">💼</span>
+      <span class="stat-num">{{ profile.skills | from_json | length if profile and profile.skills else 0 }}</span>
+      <span class="stat-desc">Skills</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-icon">🤝</span>
+      <a href="{{ url_for('candidate.friends_page') }}">
+        <span class="stat-num">{{ friend_count }}</span>
+        <span class="stat-desc">Connections</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Connection Requests -->
+  {% if incoming_requests %}
+  <div class="section-card pixel-border">
+    <h3 class="section-title">Incoming Connection Requests</h3>
+    {% for r in incoming_requests %}
+    <div class="friend-request-row">
+      <span class="req-user">{{ r.username }}</span>
+      <span class="req-detail">{{ r.title or '' }}</span>
+      <div class="req-actions">
+        <form method="POST" action="{{ url_for('candidate.friend_accept', request_id=r.id) }}" style="display:inline">
+          <button class="pixel-btn btn-small">Accept</button>
+        </form>
+        <form method="POST" action="{{ url_for('candidate.friend_reject', request_id=r.id) }}" style="display:inline">
+          <button class="pixel-btn btn-small btn-danger">Decline</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+    <a href="{{ url_for('candidate.friends_page') }}" class="view-all">View all connections →</a>
+  </div>
+  {% endif %}
+
+  <!-- AI Career Tasks -->
+  <div class="section-card pixel-border">
+    <h3 class="section-title">
+      Career Development Tasks
+      {% if tasks %}
+      <button class="pixel-btn btn-small" onclick="refreshTasks()" style="margin-left:12px;">🔄 Refresh</button>
+      {% endif %}
+    </h3>
+    {% if tasks %}
+      {% set active_count = tasks | selectattr('status', 'equalto', 'active') | list | length %}
+      {% if active_count > 0 %}
+      <div class="task-progress">&#x25C9; {{ active_count }} active task{% if active_count != 1 %}s{% endif %}</div>
+      {% endif %}
+      <div class="quests-list" id="tasks-list">
+        {% for t in tasks %}
+        {% if t.status != 'dismissed' %}
+        <div class="quest-card pixel-border {% if t.status == 'completed' %}quest-done{% endif %}" id="task-{{ t.id }}">
+          <div class="quest-header">
+            <span class="quest-icon">{{ {'skill_gap':'💡','profile_completion':'💼','career_advancement':'🧭','certification':'📜','networking':'🤝'}.get(t.category,'📋') }}</span>
+            <span class="quest-title">{{ t.title }}</span>
+            <span class="quest-prio prio-{{ t.priority }}">{{ t.priority | upper }}</span>
+          </div>
+          <p class="quest-desc">{{ t.description }}</p>
+          {% if t.status == 'completed' %}
+          <div class="quest-completed">
+            &#x2713; {{ t.proof[:80] }}
+            {% if t.proof_url %}<a href="{{ t.proof_url }}" target="_blank">&#x1F517; View</a>{% endif %}
+          </div>
+          {% else %}
+          <div class="task-actions">
+            <button class="pixel-btn btn-small task-complete-btn" data-task-id="{{ t.id }}">Complete</button>
+            <button class="pixel-btn btn-small btn-danger task-dismiss-btn" data-task-id="{{ t.id }}">Skip</button>
+          </div>
+          <form class="task-proof-form" id="proof-form-{{ t.id }}" style="display:none">
+            <textarea name="proof" class="pixel-textarea" rows="2" placeholder="Describe what you did — include links to certs, repos, or proof..."></textarea>
+            <input type="url" name="proof_url" class="pixel-input" placeholder="Link to proof (GitHub, certificate URL...)">
+            <input type="file" name="proof_file" accept=".pdf,.png,.jpg,.jpeg" class="pixel-input">
+            <button type="submit" class="pixel-btn btn-small">Submit Proof</button>
+            <div class="proof-status" id="pstatus-{{ t.id }}"></div>
+          </form>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    {% else %}
+    <p class="empty-state">Upload your CV above to get AI-generated career development tasks tailored to your profile.</p>
+    {% endif %}
+  </div>
+
+  <!-- Activity Timeline -->
+  {% if activities %}
+  <div class="section-card pixel-border">
+    <h3 class="section-title">Recent Activity</h3>
+    <div class="activity-timeline">
+      {% for a in activities %}
+      <div class="activity-item">
+        <span class="activity-icon">{{ {'cv_upload': '📄', 'cv_add_entry': '✍️', 'task_complete': '✅', 'task_dismiss': '⏭️', 'task_refresh': '🔄', 'friend_accept': '🤝', 'contact_update': '📇', 'avatar_update': '🖼️'}.get(a.action_type, '📌') }}</span>
+        <span class="activity-desc">{{ a.description }}</span>
+        <span class="activity-time">{{ a.created_at[:16] if a.created_at else '' }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Upload CV -->
+  <div class="cv-section pixel-border">
+    <h3 class="section-title">Upload Certificate or CV</h3>
+    <p class="cv-hint">Upload a PDF to extract your skills and build your talent profile automatically.</p>
+    <form id="cv-upload-form" enctype="multipart/form-data">
+      <input type="file" name="cv_file" accept=".pdf" class="pixel-input" id="cv-input" required>
+      <button type="submit" class="pixel-btn">Upload & Analyse</button>
+    </form>
+    <div id="cv-status"></div>
+  </div>
+
+  <!-- AI Text Import -->
+  <div class="cv-section pixel-border">
+    <h3 class="section-title">Add Experience via AI</h3>
+    <p class="cv-hint">Paste a project description, GitHub README, certification details, or work experience. Our AI extracts and verifies your skills automatically.</p>
+    <form id="ai-entry-form">
+      <textarea name="text" class="pixel-textarea" rows="4" placeholder="Paste your experience, project description, or certification details here..." required></textarea>
+      <textarea name="proof" class="pixel-textarea" rows="2" placeholder="Proof of work — GitHub URL, certificate name, portfolio link..." required></textarea>
+      <input type="file" name="proof_file" accept=".pdf,.png,.jpg,.jpeg" class="pixel-input">
+      <button type="submit" class="pixel-btn">Analyse with AI</button>
+    </form>
+    <div id="ai-entry-status"></div>
+  </div>
+
+</div>
+
+<style>
+.completeness-badge {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 8px;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+.completeness-badge.high { background: #d4edda; color: #155724; }
+.completeness-badge.mid  { background: #fff3cd; color: #856404; }
+.completeness-badge.low  { background: #f8d7da; color: #721c24; }
+.task-progress {
+  font-size: 12px;
+  color: var(--blue-royal);
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+.task-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+.task-proof-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.activity-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.activity-icon { font-size: 16px; flex-shrink: 0; }
+.activity-desc { flex: 1; color: var(--text); }
+.activity-time { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+</style>
+
+<script>
+document.getElementById('cv-upload-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = new FormData(this);
+  const status = document.getElementById('cv-status');
+  status.innerHTML = '<span class="status-pending">Analysing your CV...</span>';
+  document.querySelector('#cv-upload-form .pixel-btn').disabled = true;
+  try {
+    const resp = await fetch('/cv/upload', { method: 'POST', body: form });
+    const data = await resp.json();
+    if (data.error) {
+      status.innerHTML = '<span class="status-error">' + data.error + '</span>';
+    } else {
+      let msg = '&#x2713; Extracted ' + data.skills.length + ' skills. ' + (data.tasks ? data.tasks.length + ' career tasks generated.' : '');
+      status.innerHTML = '<span class="status-success">' + msg + '</span>';
+      setTimeout(() => location.reload(), 2500);
+    }
+  } catch(err) {
+    status.innerHTML = '<span class="status-error">' + err.message + '</span>';
+  }
+  document.querySelector('#cv-upload-form .pixel-btn').disabled = false;
+});
+
+document.getElementById('ai-entry-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = new FormData(this);
+  const status = document.getElementById('ai-entry-status');
+  status.innerHTML = '<span class="status-pending">Classifying your experience...</span>';
+  document.querySelector('#ai-entry-form .pixel-btn').disabled = true;
+  try {
+    const resp = await fetch('/cv/add-entry', { method: 'POST', body: form });
+    const data = await resp.json();
+    if (data.error) {
+      status.innerHTML = '<span class="status-error">' + data.error + '</span>';
+    } else {
+      const type = data.section_type.replace(/_/g, ' ');
+      let msg = '&#x2713; Added as <strong>' + type + '</strong>. Skills detected: ' + data.skills.join(', ') + '.';
+      status.innerHTML = '<span class="status-success">' + msg + '</span>';
+      setTimeout(() => location.reload(), 2500);
+    }
+  } catch(err) {
+    status.innerHTML = '<span class="status-error">' + err.message + '</span>';
+  }
+  document.querySelector('#ai-entry-form .pixel-btn').disabled = false;
+});
+
+document.querySelectorAll('.task-complete-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const id = this.dataset.taskId;
+    this.parentElement.style.display = 'none';
+    document.getElementById('proof-form-' + id).style.display = 'flex';
+  });
+});
+
+document.querySelectorAll('.task-dismiss-btn').forEach(btn => {
+  btn.addEventListener('click', async function() {
+    const id = this.dataset.taskId;
+    if (!confirm('Skip this task?')) return;
+    const resp = await fetch('/task/dismiss/' + id, { method: 'POST' });
+    const data = await resp.json();
+    if (data.success) {
+      const card = document.getElementById('task-' + id);
+      if (card) card.style.display = 'none';
+    }
+  });
+});
+
+document.querySelectorAll('.task-proof-form').forEach(form => {
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const qid = this.id.replace('proof-form-', '');
+    const formData = new FormData(this);
+    const status = document.getElementById('pstatus-' + qid);
+    status.innerHTML = '<span class="status-pending">Validating...</span>';
+    try {
+      const resp = await fetch('/task/complete/' + qid, { method: 'POST', body: formData });
+      const data = await resp.json();
+      if (data.success) {
+        status.innerHTML = '<span class="status-success">&#x2713; ' + data.message + '</span>';
+        setTimeout(() => location.reload(), 2000);
+      } else {
+        status.innerHTML = '<span class="status-error">' + (data.error || 'Validation failed') + '</span>';
+      }
+    } catch(err) {
+      status.innerHTML = '<span class="status-error">' + err.message + '</span>';
+    }
+  });
+});
+
+async function refreshTasks() {
+  if (!confirm('Regenerate career tasks based on your current profile?')) return;
+  const resp = await fetch('/task/refresh', { method: 'POST' });
+  const data = await resp.json();
+  if (data.success) {
+    location.reload();
+  }
+}
+</script>
+{% endblock %}

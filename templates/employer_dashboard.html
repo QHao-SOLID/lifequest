@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="emp-page">
+<!-- LEFT: Card Deck Panel -->
+<div class="deck-panel">
+  <div class="deck-panel-inner">
+    <div class="deck-top-label">
+      <span class="deck-top-hint">Start searching!</span>
+    </div>
+
+    {% if candidates and candidates|length > 0 %}
+    <div class="talent-deck" id="talent-deck">
+      {% for c in candidates %}
+      {% set sk = c.skills | from_json if c.skills else [] %}
+      <div class="talent-card"
+           data-id="{{ c.id }}"
+           data-name="{{ c.username }}"
+           data-title="{{ c.title or 'Candidate' }}"
+           data-skills="{{ sk[:3] | join(', ') }}"
+           data-avatar="{{ c.avatar or '🧑' }}"
+           data-match="{{ c.match_pct }}"
+           onclick="openSwipeModal(this)">
+        <div class="talent-card-avatar">
+          {% if c.avatar and c.avatar.startswith('custom:') %}
+            <img src="{{ url_for('candidate.serve_avatar', filename=c.avatar.replace('custom:', '')) }}" 
+                 style="width: 40px; height: 40px; border-radius: var(--radius-md); object-fit: cover; margin: 0 auto; display: block;">
+          {% else %}
+            {{ c.avatar or '🧑' }}
+          {% endif %}
+        </div>
+        <div class="talent-card-name">{{ c.username }}</div>
+        <div class="talent-card-role">{{ c.title or 'Candidate' }}</div>
+        <ul class="talent-card-bullets">
+          {% for s in sk[:3] %}<li>{{ s }}</li>{% endfor %}
+          {% if not sk %}<li>Profile pending</li>{% endif %}
+        </ul>
+        {% if c.match_pct %}<div class="talent-card-match">{{ c.match_pct }}% match</div>{% endif %}
+        <div class="talent-card-hint">Click to review &#x2192;</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="deck-empty-frame" id="talent-deck">
+      <span class="deck-empty-text">No matches yet.<br>Post a job to get started.</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+  <!-- RIGHT: Main Content -->
+  <div class="emp-main">
+    <h2 class="page-title">{{ employer.company_name }} <span style="font-size:14px;color:var(--text-muted);font-weight:400;">· {{ employer.industry }}</span></h2>
+
+    <!-- Search -->
+    <div class="section-card">
+      <h3 class="section-title">Search Candidates</h3>
+      <form class="inline-form" onsubmit="event.preventDefault(); searchCandidates(this.q.value)">
+        <input type="text" name="q" class="pixel-input" placeholder="Search by name or user ID...">
+        <button type="submit" class="pixel-btn btn-small">Search</button>
+      </form>
+      <div id="search-results"></div>
+    </div>
+
+    <!-- Post Job -->
+    <div class="section-card">
+      <h3 class="section-title">Post a Job</h3>
+      <form method="POST" action="{{ url_for('employer.job_create') }}">
+        <div class="field">
+          <label>Job Title</label>
+          <input type="text" name="title" class="pixel-input" required>
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <textarea name="description" class="pixel-textarea" rows="3"></textarea>
+        </div>
+        <div class="field">
+          <label>Required Skills <span style="font-size:10px;color:var(--text-muted);text-transform:none;letter-spacing:0">(JSON e.g. ["Python","SQL"])</span></label>
+          <input type="text" name="skills" class="pixel-input" placeholder='["Python","SQL"]'>
+        </div>
+        <div class="field" style="display:flex;gap:12px">
+          <div style="flex:1"><label>Location</label><input type="text" name="location" class="pixel-input"></div>
+          <div style="flex:1"><label>Salary Range</label><input type="text" name="salary" class="pixel-input" placeholder="e.g. RM4,000–6,000"></div>
+        </div>
+        <button type="submit" class="pixel-btn">Post Job</button>
+      </form>
+    </div>
+
+    <!-- Your Jobs -->
+    <div class="section-card">
+      <h3 class="section-title">Your Jobs ({{ jobs|length }})</h3>
+      {% if jobs %}
+      <div class="entry-list">
+        {% for j in jobs %}
+        <div class="entry-card">
+          <div class="entry-header">
+            <span class="entry-title">{{ j.title }}</span>
+            <span class="entry-badge">{{ j.status | upper }}</span>
+          </div>
+          {% if j.location %}<div class="entry-duration">📍 {{ j.location }}{% if j.salary_range %} · {{ j.salary_range }}{% endif %}</div>{% endif %}
+          <div class="entry-tags">
+            {% set sk = j.skills_required | from_json if j.skills_required and j.skills_required.strip() else [] %}
+            {% for s in sk[:4] %}<span class="mini-tag">{{ s }}</span>{% endfor %}
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px">
+            {% if j.status == 'open' %}
+            <form method="POST" action="{{ url_for('employer.job_close', job_id=j.id) }}" style="display:inline">
+              <button class="pixel-btn btn-small btn-ghost">Close Listing</button>
+            </form>
+            {% endif %}
+            <form method="POST" action="{{ url_for('employer.job_delete', job_id=j.id) }}" style="display:inline" onsubmit="return confirm('Delete this job?')">
+              <button class="pixel-btn btn-small btn-danger">Delete</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-state">No jobs posted yet. Post a job above to start matching candidates.</p>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<!-- SWIPE MODAL -->
+<div class="swipe-overlay" id="swipe-overlay" onclick="closeSwipeModal()">
+  <div class="swipe-modal" id="swipe-modal" onclick="event.stopPropagation()">
+    <div class="swipe-stamp stamp-pass" id="stamp-pass">PASS</div>
+    <div class="swipe-stamp stamp-shortlist" id="stamp-shortlist">SHORTLISTED ✓</div>
+    <button class="swipe-close" onclick="closeSwipeModal()">✕</button>
+    <div class="swipe-modal-avatar" id="modal-avatar"></div>
+    <div class="swipe-modal-name" id="modal-name"></div>
+    <div class="swipe-modal-role" id="modal-role"></div>
+    <div class="swipe-modal-match" id="modal-match"></div>
+    <ul class="swipe-modal-skills" id="modal-skills"></ul>
+    <div class="swipe-modal-job-select" id="modal-job-select" style="margin:12px 0">
+      <select id="job-selector" class="pixel-input" style="font-size:12px;width:100%" onchange="fetchAdvisor()">
+        <option value="">Match against a job for AI analysis...</option>
+        {% for j in jobs %}
+        {% if j.status == 'open' %}
+        <option value="{{ j.id }}">{{ j.title }}</option>
+        {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+    <div class="swipe-modal-advisor" id="modal-advisor" style="display:none;margin:10px 0;padding:12px;background:var(--surface-alt);border-radius:8px;font-size:12px"></div>
+    <div class="swipe-modal-actions">
+      <button class="swipe-btn swipe-btn-pass" onclick="swipeCard('pass')">
+        <span class="swipe-btn-icon">✕</span>
+        <span>Pass</span>
+      </button>
+      <button class="swipe-btn swipe-btn-shortlist" onclick="swipeCard('shortlist')">
+        <span class="swipe-btn-icon">✓</span>
+        <span>Shortlist</span>
+      </button>
+    </div>
+    <div class="swipe-keyboard-hint">← Pass &nbsp;|&nbsp; Shortlist →</div>
+  </div>
+</div>
+
+
+<script>
+let currentCard = null;
+
+function stackDeck() {
+  const cards = document.querySelectorAll('.talent-card');
+  cards.forEach((card, i) => {
+    const offset = cards.length - 1 - i;
+    card.style.zIndex    = i + 1;
+    card.style.transform = `rotate(${offset % 2 === 0 ? offset * 1.8 : -offset * 1.8}deg) translateY(${offset * 6}px)`;
+    card.style.opacity   = Math.max(0.55, 1 - offset * 0.14);
+  });
+}
+if (document.querySelector('.talent-card')) stackDeck();
+
+function openSwipeModal(card) {
+  currentCard = card;
+  document.getElementById('modal-avatar').textContent = card.dataset.avatar;
+  document.getElementById('modal-name').textContent   = card.dataset.name;
+  document.getElementById('modal-role').textContent   = card.dataset.title;
+  document.getElementById('modal-match').textContent  = card.dataset.match ? card.dataset.match + '% match' : '';
+  const ul = document.getElementById('modal-skills');
+  ul.innerHTML = '';
+  if (card.dataset.skills) {
+    card.dataset.skills.split(', ').forEach(s => {
+      if (!s.trim()) return;
+      const li = document.createElement('li');
+      li.textContent = s.trim();
+      ul.appendChild(li);
+    });
+  }
+  document.getElementById('job-selector').value = '';
+  document.getElementById('modal-advisor').style.display = 'none';
+  document.getElementById('stamp-pass').style.opacity      = '0';
+  document.getElementById('stamp-shortlist').style.opacity = '0';
+  document.getElementById('swipe-modal').classList.remove('swipe-left-anim','swipe-right-anim');
+  document.getElementById('swipe-overlay').classList.add('active');
+  requestAnimationFrame(() => document.getElementById('swipe-modal').classList.add('active'));
+}
+
+function closeSwipeModal() {
+  document.getElementById('swipe-overlay').classList.remove('active');
+  document.getElementById('swipe-modal').classList.remove('active');
+}
+
+async function fetchAdvisor() {
+  const jobId = document.getElementById('job-selector').value;
+  const advisor = document.getElementById('modal-advisor');
+  if (!jobId || !currentCard) { advisor.style.display = 'none'; return; }
+  advisor.style.display = 'block';
+  advisor.innerHTML = '<span style="color:var(--text-muted)">AI analysing...</span>';
+  try {
+    const form = new FormData();
+    form.append('candidate_id', currentCard.dataset.id);
+    form.append('job_id', jobId);
+    const resp = await fetch('/employer/analyze-fit', { method: 'POST', body: form });
+    const data = await resp.json();
+    const rec = data.recommendation === 'shortlist' ? '🟢 Recommend shortlist' : data.recommendation === 'pass' ? '🔴 Recommend pass' : '🟡 Consider';
+    advisor.innerHTML = `
+      <div style="font-weight:600;margin-bottom:4px">AI Advisor: ${data.match_score}% fit — ${rec}</div>
+      <div style="margin-bottom:4px">${data.summary}</div>
+      ${data.skill_gaps.length ? '<div style="color:#721c24;font-size:11px">Gaps: ' + data.skill_gaps.join(', ') + '</div>' : ''}
+      ${data.risk_factors.length ? '<div style="color:#856404;font-size:11px;margin-top:2px">Risks: ' + data.risk_factors.join(', ') + '</div>' : ''}
+    `;
+  } catch(e) {
+    advisor.innerHTML = '<span style="color:var(--danger)">Analysis unavailable</span>';
+  }
+}
+
+async function swipeCard(direction) {
+  if (!currentCard) return;
+  const uid    = currentCard.dataset.id;
+  const modal  = document.getElementById('swipe-modal');
+  const action = direction === 'shortlist' ? 'accepted' : 'rejected';
+  document.getElementById(direction === 'pass' ? 'stamp-pass' : 'stamp-shortlist').style.opacity = '1';
+  try { await fetch('/employer/swipe/' + uid + '/' + action, { method: 'POST' }); } catch(e) {}
+  modal.classList.add(direction === 'pass' ? 'swipe-left-anim' : 'swipe-right-anim');
+  setTimeout(() => {
+    currentCard.style.transition = 'all 0.35s ease';
+    currentCard.style.transform  = direction === 'pass'
+      ? 'rotate(-25deg) translateX(-160%) translateY(-30px)'
+      : 'rotate(25deg) translateX(160%) translateY(-30px)';
+    currentCard.style.opacity = '0';
+    setTimeout(() => {
+      currentCard.remove();
+      stackDeck();
+      if (!document.querySelectorAll('.talent-card').length) {
+        document.getElementById('talent-deck').innerHTML = '<div class="deck-empty-frame"><span class="deck-empty-text">All candidates reviewed.</span></div>';
+      }
+      closeSwipeModal();
+    }, 350);
+  }, 300);
+}
+
+async function searchCandidates(q) {
+  const box = document.getElementById('search-results');
+  box.innerHTML = '<span class="status-pending">Searching...</span>';
+  const resp = await fetch('/employer/search?q=' + encodeURIComponent(q));
+  const data = await resp.json();
+  if (!data.results || !data.results.length) { box.innerHTML = '<p class="empty-state">No candidates found.</p>'; return; }
+  box.innerHTML = data.results.map(c => `
+    <div class="search-result-card">
+      <div style="display:flex;align-items:center;gap:12px">
+        <a href="/profile/${c.username}" style="text-decoration:none">
+          ${c.avatar && c.avatar.startsWith('custom:') ? 
+            `<img src="/uploads/avatars/${c.avatar.replace('custom:', '')}" style="width: 40px; height: 40px; border-radius: 12px; object-fit: cover;">` : 
+            `<span style="font-size:32px">${c.avatar || '🧑'}</span>`}
+        </a>
+        <div style="flex:1">
+          <a href="/profile/${c.username}"><strong style="font-size:14px;color:var(--text)">${c.username}</strong></a>
+          <div style="font-size:12px;color:var(--blue-royal);margin-top:2px">${c.title || ''}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${c.skills ? c.skills.join(', ') : ''}</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="pixel-btn btn-small btn-danger" onclick="quickSwipe(${c.id},'rejected',this)">Pass</button>
+          <button class="pixel-btn btn-small" onclick="quickSwipe(${c.id},'accepted',this)">Shortlist</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function quickSwipe(uid, action, btn) {
+  const resp = await fetch('/employer/swipe/' + uid + '/' + action, { method: 'POST' });
+  const data = await resp.json();
+  if (data.success) {
+    const card = btn.closest('.search-result-card');
+    card.style.opacity = '0.4';
+    card.querySelectorAll('button').forEach(b => b.disabled = true);
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('swipe-overlay').classList.contains('active')) return;
+  if (e.key === 'ArrowLeft')  swipeCard('pass');
+  if (e.key === 'ArrowRight') swipeCard('shortlist');
+  if (e.key === 'Escape')     closeSwipeModal();
+});
+
+</script>
+{% endblock %}

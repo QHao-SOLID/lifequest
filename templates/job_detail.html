@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+  <div class="section-card pixel-border">
+    <h2 class="section-title">▸ {{ job.title }}</h2>
+    <p class="player-title">@ {{ job.company_name }} · {{ job.industry }}</p>
+    <div class="meta-grid" style="margin-top:12px">
+      {% if job.location %}<div class="meta-item"><span class="meta-label">📍 Location</span><span class="meta-value">{{ job.location }}</span></div>{% endif %}
+      {% if job.salary_range %}<div class="meta-item"><span class="meta-label">💰 Salary</span><span class="meta-value">{{ job.salary_range }}</span></div>{% endif %}
+      <div class="meta-item"><span class="meta-label">📅 Status</span><span class="meta-value">{{ job.status | upper }}</span></div>
+    </div>
+    {% if job.description %}
+    <div style="margin-top:12px">
+      <label style="font-size:8px;color:var(--dim)">Description</label>
+      <p style="font-size:8px;color:var(--text);margin-top:4px;line-height:1.6">{{ job.description }}</p>
+    </div>
+    {% endif %}
+    {% if job.skills_required %}
+    <div style="margin-top:12px">
+      <label style="font-size:8px;color:var(--dim)">Skills Required</label>
+      <div class="skill-tags" style="margin-top:4px">
+        {% for s in job.skills_required %}<span class="skill-tag pixel-border">{{ s }}</span>{% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="section-card pixel-border">
+    <h3 class="section-title">▸ ABOUT {{ job.company_name }}</h3>
+    {% if job.company_desc %}<p style="font-size:8px;color:var(--text);line-height:1.6;margin-bottom:8px">{{ job.company_desc }}</p>{% endif %}
+    {% if job.website %}<div class="meta-item"><span class="meta-label">🌐 Website</span><span class="meta-value"><a href="{{ job.website }}" target="_blank">{{ job.website }}</a></span></div>{% endif %}
+    {% if job.contact_email %}<div class="meta-item"><span class="meta-label">📧 Contact</span><span class="meta-value"><a href="mailto:{{ job.contact_email }}">{{ job.contact_email }}</a></span></div>{% endif %}
+  </div>
+
+  <div class="section-card pixel-border" style="text-align:center">
+    <p style="font-size:8px;color:var(--dim);margin-bottom:8px">Interested in this position?</p>
+    <a href="mailto:{{ job.contact_email }}" class="pixel-btn pixel-border">📧 SEND APPLICATION</a>
+  </div>
+</div>
+{% endblock %}

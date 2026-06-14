@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-container">
+  <div class="pixel-card pixel-border">
+    <h1 class="pixel-title">▸ LOGIN</h1>
+    <form method="POST">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" name="username" class="pixel-input pixel-border" required>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" name="password" class="pixel-input pixel-border" required>
+      </div>
+      <button type="submit" class="pixel-btn pixel-border">▶ ENTER</button>
+    </form>
+    <p class="auth-link">No account? <a href="{{ url_for('auth.signup') }}">Sign up</a></p>
+  </div>
+</div>
+{% endblock %}

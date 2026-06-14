@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+
+  <h2 class="page-title">My Network</h2>
+
+  <div class="section-card">
+    <h3 class="section-title">Add Connection</h3>
+    <form id="send-req-form" class="inline-form">
+      <input type="number" name="user_id" placeholder="Enter user ID" class="pixel-input" required min="1" style="max-width:200px">
+      <button type="submit" class="pixel-btn btn-small">Send Request</button>
+    </form>
+    <div id="send-status"></div>
+  </div>
+
+  {% if incoming_requests %}
+  <div class="section-card">
+    <h3 class="section-title">Incoming Requests ({{ incoming_requests|length }})</h3>
+    {% for r in incoming_requests %}
+    <div class="friend-request-row">
+      <a href="{{ url_for('candidate.profile', username=r.username) }}" class="req-user">{{ r.username }}</a>
+      <span class="req-detail">{{ r.title or '' }}</span>
+      <div class="req-actions">
+        <form method="POST" action="{{ url_for('candidate.friend_accept', request_id=r.id) }}" style="display:inline">
+          <button class="pixel-btn btn-small">Accept</button>
+        </form>
+        <form method="POST" action="{{ url_for('candidate.friend_reject', request_id=r.id) }}" style="display:inline">
+          <button class="pixel-btn btn-small btn-danger">Decline</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if outgoing_requests %}
+  <div class="section-card">
+    <h3 class="section-title">Sent Requests ({{ outgoing_requests|length }})</h3>
+    {% for r in outgoing_requests %}
+    <div class="friend-request-row">
+      <a href="{{ url_for('candidate.profile', username=r.username) }}" class="req-user">{{ r.username }}</a>
+      <span class="req-detail">{{ r.title or '' }}</span>
+      <span class="status-pending">Pending</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if friends %}
+  <div class="section-card">
+    <h3 class="section-title">Connections ({{ friends|length }})</h3>
+    <div class="friends-grid">
+      {% for f in friends %}
+      <div class="friend-card">
+        <div class="friend-avatar friend-avatar-emoji">{{ f.avatar or '🧑' }}</div>
+        <div class="friend-info">
+          <a href="{{ url_for('candidate.profile', username=f.username) }}"><strong>{{ f.username }}</strong></a>
+          <span class="friend-title">{{ f.title or '' }}</span>
+        </div>
+        <form method="POST" action="{{ url_for('candidate.friend_remove', friend_id=f.id) }}" style="display:inline">
+          <button class="pixel-btn btn-small btn-danger">Remove</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not incoming_requests and not outgoing_requests and not friends %}
+  <div class="section-card">
+    <p class="empty-state">No connections yet. Enter a user ID above to send a connection request.</p>
+  </div>
+  {% endif %}
+
+</div>
+<script>
+document.getElementById('send-req-form')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const userId = this.querySelector('input[name="user_id"]').value;
+  const status = document.getElementById('send-status');
+  const resp = await fetch('/friend/send/' + userId, { method: 'POST' });
+  const data = await resp.json();
+  status.innerHTML = '<span class="' + (data.success ? 'status-success' : 'status-error') + '">' + data.message + '</span>';
+  if (data.success) setTimeout(() => location.reload(), 1500);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+  <h2 class="section-title">▸ RECENT MATCHES</h2>
+  {% if matches %}
+  <div class="section-card pixel-border">
+    <div class="entry-list">
+      {% for m in matches %}
+      <div class="entry-card pixel-border">
+        <div class="entry-header">
+          <span class="entry-title">
+            {% if m.avatar and m.avatar.startswith('custom:') %}
+              <img src="{{ url_for('candidate.serve_avatar', filename=m.avatar.replace('custom:', '')) }}" 
+                   style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover; display: inline-block; vertical-align: middle; margin-right: 10px;">
+            {% else %}
+              <span style="font-size: 24px; display: inline-block; vertical-align: middle; margin-right: 10px;">{{ m.avatar or '🧑' }}</span>
+            {% endif %}
+            {{ m.username }}
+          </span>
+          <!-- Profile info -->
+        </div>
+        <div class="entry-duration">{{ m.title or '' }}</div>
+        <div class="entry-tags">
+          {% set sk = m.skills | from_json if m.skills else [] %}
+          {% for s in sk[:6] %}
+            <span class="mini-tag">{{ s }}</span>
+          {% endfor %}
+        </div>
+        <form method="POST" action="{{ url_for('employer.hire', candidate_id=m.candidate_id) }}" style="margin-top:8px;display:flex;gap:6px;align-items:center">
+          <select name="job_id" class="pixel-input pixel-border" style="flex:1;font-size:13px" required>
+            <option value="">Assign job...</option>
+            {% for j in jobs %}
+              <option value="{{ j.id }}">{{ j.title }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="pixel-btn pixel-border btn-small">🏆 Hire</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="section-card pixel-border">
+    <p class="empty-state">No accepted candidates yet. Swipe right on candidates from your dashboard!</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
